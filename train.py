@@ -1,6 +1,9 @@
 import cv2
 import numpy as np
 import random
+from tensorflow import keras
+from keras.optimizers import SGD, adadelta, adagrad, adam, adamax, nadam
+from keras.callbacks import ModelCheckpoint, TensorBoard, CSVLogger, ReduceLROnPlateau
 
 names = ["1607310362", "1607310679", "1607311001", "1607311333", "1607311650", "1607311980", "1607312321", "1607312724",
          "1607313098", "1607313507", "1607310394", "1607310710", "1607311033", "1607311358", "1607311680", "1607312014",
@@ -54,9 +57,14 @@ def batch_generator(batch_size, num__channels, batch_image_size):
         # y_batch should be N x 512 x 512 x 6  (N batches, 1 6-layer image)
         yield X_batch, y_batch
 
+def charbonnier_loss(y, y_predicted):
+    return keras.backend.sqrt(keras.backend.square(y - y_predicted) + 0.01**2)
+
 
 def run():
-    batch_generator(16, None, None)
+    optimizer = adam(lr=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
+    loss = charbonnier_loss
+
 
 
 if __name__ == '__main__':
