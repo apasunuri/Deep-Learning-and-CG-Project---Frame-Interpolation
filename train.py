@@ -50,7 +50,7 @@ def batch_generator(batch_size, num__channels, batch_image_size):
                                 cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
         lastFrame[i] = np.concatenate((colorLast, motVecLast), 2)
 
-        X_batch = np.concatenate((firstFrame, lastFrame), 2)
+        X_batch = np.concatenate((firstFrame, lastFrame), 3)  # Concatenate along channels dimension
         y_batch = middleFrame
 
         # X_batch should be N x 512 x 512 x 12 (N batches, 2 6-layer images)
@@ -64,7 +64,9 @@ def charbonnier_loss(y, y_predicted):
 def run():
     optimizer = adam(lr=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
     loss = charbonnier_loss
-
+    a = batch_generator(32)
+    print(a.shape)
+    print(a)
 
 
 if __name__ == '__main__':
