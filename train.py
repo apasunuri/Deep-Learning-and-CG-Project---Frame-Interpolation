@@ -1,9 +1,75 @@
 import cv2
 import numpy as np
 import random
-from tensorflow import keras
-from keras.optimizers import SGD, adadelta, adagrad, adam, adamax, nadam
-from keras.callbacks import ModelCheckpoint, TensorBoard, CSVLogger, ReduceLROnPlateau
+import tensorflow as tf
+from tensorflow.keras import backend as K
+from tensorflow.keras.optimizers import SGD, adadelta, adagrad, adam, adamax, nadam
+from tensorflow.keras.callbacks import ModelCheckpoint, TensorBoard, CSVLogger, ReduceLROnPlateau
+from tensorflow.keras.utils import Sequence
+from model import Network, backward_warping
+
+class DataGenerator(Sequence):
+    def __init__(self, files, file_path, data_type, batch_size, shuffle):
+        self.batch_size = batch_size
+        self.files = files
+        self.file_path = file_path
+        self.data_type = data_type
+        self.shuffle = shuffle
+        self.on_epoch_end()
+
+    def __len__(self):
+        return int(np.floor(len(self.files) / self.batch_size))
+
+    def __getitem__(self, index):
+        start = index * self.batch_size
+        end = (index + 1) * self.batch_size
+        indexes = self.indexes[start:end]
+        files_temp = [self.files[i] for i in indexes]
+
+        X, Y = self.__data_generation(files_temp)
+
+    def on_epoch_end(self):
+        self.indexes = np.arange(len(self.files))
+        if(self.shuffle):
+            np.random.shuffle(self.indexes)
+
+    def __data_generation(self, files):
+        for f in files:
+            pass
+
+# Loss Functions
+def l1_loss(y_true, y_prediction):
+    return K.mean(K.abs(y_prediction, y_true), axis = [1, 2, 3])
+
+def wrapping_loss(network_intermediate_values, y_prediction):
+    loss_1 = l1_loss(network_intermediate_values[0], backward_warping(network_intermediate_values[1], network_intermediate_values[2]))
+    loss_2 = l1_loss(network_intermediate_values[1], backward_warping(network_intermediate_values[0], network_intermediate_values[3]))
+    loss_3 = l1_loss(y_prediction, backward_warping(network_intermediate_values[0], network_intermediate_values[4]))
+    loss_4 = l1_loss(y_prediction, backward_warping(network_intermediate_values[1], network_intermediate_values[5]))
+    return loss_1 + loss_2 + loss_3 + loss_4
+
+def smoothness_loss(network_intermediate_values):
+    loss_1 = K.mean(K.abs(network_intermediate_values[2][:, 1:, :, :] - network_intermediate_values[2][:, :-1, :, :])) + \
+             K.mean(K.abs(network_intermediate_values[2][:, :, 1:, :] - network_intermediate_values[2][:, :, :-1, :]))
+    loss_2 = K.mean(K.abs(network_intermediate_values[3][:, 1:, :, :] - network_intermediate_values[3][:, :-1, :, :])) + \
+             K.mean(K.abs(network_intermediate_values[3][:, :, 1:, :] - network_intermediate_values[3][:, :, :-1, :]))
+    return loss_1 + loss_2
+
+def loss_function(network_intermediate_values):
+    def loss(y_true, y_prediction):
+        l1_loss_val = l1_loss(y_true, y_prediction)
+        wrapping_loss_val = wrapping_loss(network_intermediate_values, y_prediction)
+        smoothness_loss_val = smoothness_loss(network_intermediate_values)
+        return smoothness_loss_val + 102 * wrapping_loss_val + 204 * l1_loss_val
+    return loss
+
+def charbonnier_loss(y_true, y_predicted):
+    return K.sqrt(K.square(y_true - y_predicted) + 0.01**2)
+
+# Metrics
+def psnr_metric(y_prediction, y_true):
+    mean_squared_error = K.mean(K.square(y_true - y_prediction))
+    return (10.0 * K.log(1.0 / (mean_squared_error + 1e-10))) / K.log(10.0)
 
 names = ["1607310362", "1607310679", "1607311001", "1607311333", "1607311650", "1607311980", "1607312321", "1607312724",
          "1607313098", "1607313507", "1607310394", "1607310710", "1607311033", "1607311358", "1607311680", "1607312014",
@@ -50,22 +116,28 @@ def batch_generator(batch_size, num__channels, batch_image_size):
                                 cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
         lastFrame[i] = np.concatenate((colorLast, motVecLast), 2)
 
-        X_batch = np.concatenate((firstFrame, lastFrame), 2)
+        X_batch = np.array([firstFrame, lastFrame], dtype = 'float16')
         y_batch = middleFrame
 
         # X_batch should be N x 512 x 512 x 12 (N batches, 2 6-layer images)
         # y_batch should be N x 512 x 512 x 6  (N batches, 1 6-layer image)
         yield X_batch, y_batch
 
-def charbonnier_loss(y, y_predicted):
-    return keras.backend.sqrt(keras.backend.square(y - y_predicted) + 0.01**2)
-
-
 def run():
+    frame_interpolation = Network()
+    model = frame_interpolation.get_model()
+    model_intermediate_values = frame_interpolation.get_intermediate_values()
     optimizer = adam(lr=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
     loss = charbonnier_loss
 
+    train_generator = 0
+    test_generator = 0
+    train_steps = train_generator.__len__()
+    test_steps = test_generator.__len__()
 
+    model.compile()
+    model.fit()
+    model.evaluate()
 
 if __name__ == '__main__':
     run()
