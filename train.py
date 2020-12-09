@@ -117,6 +117,7 @@ def batch_generator(batch_size, num__channels, batch_image_size):
         lastFrame[i] = np.concatenate((colorLast, motVecLast), 2)
 
         X_batch = np.array([firstFrame, lastFrame], dtype = 'float16')
+        #X_batch = np.concatenate((firstFrame, lastFrame), 3)  # Concatenate along channels dimension
         y_batch = middleFrame
 
         # X_batch should be N x 512 x 512 x 12 (N batches, 2 6-layer images)
@@ -134,6 +135,9 @@ def run():
     test_generator = 0
     train_steps = train_generator.__len__()
     test_steps = test_generator.__len__()
+    a = batch_generator(32)
+    print(a.shape)
+    print(a)
 
     model.compile()
     model.fit()
