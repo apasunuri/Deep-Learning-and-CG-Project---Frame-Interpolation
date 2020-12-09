@@ -82,8 +82,88 @@ names = ["1607310362", "1607310679", "1607311001", "1607311333", "1607311650", "
          "1607312920", "1607313319", "1607310560", "1607310885", "1607311207", "1607311536", "1607311866", "1607312204",
          "1607312589", "1607312955", "1607313349", "1607310590", "1607310913", "1607311237", "1607311563", "1607311895",
          "1607312233", "1607312618", "1607312985", "1607313393", "1607310619", "1607310940", "1607311266", "1607311590",
-         "1607311922", "1607312264", "1607312655", "1607313027", "1607313429", "1607310647", "1607310969", "1607311300",
-         "1607311622", "1607311952", "1607312294", "1607312693", "1607313060", "1607313473", ]
+         "1607311922", "1607312264", "1607312655", "1607313027"]
+
+test_names = ["1607313429", "1607310647", "1607310969", "1607311300",
+              "1607311622", "1607311952", "1607312294", "1607312693", "1607313060", "1607313473"]
+
+
+def final_validation_batch_generator(batch_size):
+    folders = ["FreeMountain", "SampleScene", "demoScene_free"]
+    firstFrame = np.zeros(shape=(batch_size, 512, 512, 6), dtype="float16")
+    middleFrame = np.zeros(shape=(batch_size, 512, 512, 6), dtype="float16")
+    lastFrame = np.zeros(shape=(batch_size, 512, 512, 6), dtype="float16")
+
+    random.seed()
+
+    for i in range(batch_size):
+        randDir = random.choice(folders)
+        randNum = 0
+        if randDir == "FreeMountain":
+            randNum = random.randrange(3, 497)
+        elif randDir == "SampleScene":
+            randNum = random.randrange(3, 198)
+        elif randDir == "demoScene_free":
+            randNum = random.randrange(3, 498)
+
+        colorFirst = cv2.imread(dir + randDir + "/" + randDir + "final" + str(randNum - 1).zfill(4) + ".exr",
+                                cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
+        motVecFirst = cv2.imread(dir + randDir + "/" + randDir + "motVec" + str(randNum - 1).zfill(4) + ".exr",
+                                 cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
+        firstFrame[i] = np.concatenate((colorFirst, motVecFirst), 2)
+
+        colorMiddle = cv2.imread(dir + randDir + "/" + randDir + "final" + str(randNum).zfill(4) + ".exr",
+                                 cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
+        motVecMiddle = cv2.imread(dir + randDir + "/" + randDir + "motVec" + str(randNum).zfill(4) + ".exr",
+                                  cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
+        middleFrame[i] = np.concatenate((colorMiddle, motVecMiddle), 2)
+
+        colorLast = cv2.imread(dir + randDir + "/" + randDir + "final" + str(randNum + 1).zfill(4) + ".exr",
+                               cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
+        motVecLast = cv2.imread(dir + randDir + "/" + randDir + "motVec" + str(randNum + 1).zfill(4) + ".exr",
+                                cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
+        lastFrame[i] = np.concatenate((colorLast, motVecLast), 2)
+
+        X_batch = np.array([firstFrame, lastFrame], dtype='float16')
+        y_batch = middleFrame
+
+        return X_batch, y_batch
+
+
+def test_batch_generator(batch_size):
+    dir = "/blue/cis6930/andrew.watson/AutoScene1/"
+    firstFrame = np.zeros(shape=(batch_size, 512, 512, 6), dtype="float16")
+    middleFrame = np.zeros(shape=(batch_size, 512, 512, 6), dtype="float16")
+    lastFrame = np.zeros(shape=(batch_size, 512, 512, 6), dtype="float16")
+
+    random.seed()
+
+    # Load images from folder
+    for i in range(batch_size):
+        randNum = random.randrange(3, 398)
+        randDir = random.choice(test_names)
+        colorFirst = cv2.imread(dir + randDir + "/" + randDir + "final" + str(randNum - 1).zfill(4) + ".exr",
+                                cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
+        motVecFirst = cv2.imread(dir + randDir + "/" + randDir + "motVec" + str(randNum - 1).zfill(4) + ".exr",
+                                 cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
+        firstFrame[i] = np.concatenate((colorFirst, motVecFirst), 2)
+
+        colorMiddle = cv2.imread(dir + randDir + "/" + randDir + "final" + str(randNum).zfill(4) + ".exr",
+                                 cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
+        motVecMiddle = cv2.imread(dir + randDir + "/" + randDir + "motVec" + str(randNum).zfill(4) + ".exr",
+                                  cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
+        middleFrame[i] = np.concatenate((colorMiddle, motVecMiddle), 2)
+
+        colorLast = cv2.imread(dir + randDir + "/" + randDir + "final" + str(randNum + 1).zfill(4) + ".exr",
+                               cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
+        motVecLast = cv2.imread(dir + randDir + "/" + randDir + "motVec" + str(randNum + 1).zfill(4) + ".exr",
+                                cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
+        lastFrame[i] = np.concatenate((colorLast, motVecLast), 2)
+
+        X_batch = np.array([firstFrame, lastFrame], dtype='float16')
+        y_batch = middleFrame
+
+        return X_batch, y_batch
 
 
 def batch_generator(batch_size, num__channels, batch_image_size):
@@ -122,7 +202,7 @@ def batch_generator(batch_size, num__channels, batch_image_size):
 
         # X_batch should be N x 512 x 512 x 12 (N batches, 2 6-layer images)
         # y_batch should be N x 512 x 512 x 6  (N batches, 1 6-layer image)
-        yield X_batch, y_batch
+        return X_batch, y_batch
 
 def run():
     frame_interpolation = Network()
