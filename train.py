@@ -3,6 +3,7 @@ import numpy as np
 import random
 import tensorflow as tf
 from tensorflow.keras import backend as K
+import os
 # from tensorflow.keras.optimizers import SGD, adadelta, adagrad, Adam, adamax, nadam
 from tensorflow.keras.optimizers import SGD, Adam
 from tensorflow.keras.callbacks import ModelCheckpoint, TensorBoard, CSVLogger, ReduceLROnPlateau
@@ -41,7 +42,7 @@ from model import Network, backward_warping
 
 # Loss Functions
 def l1_loss(y_true, y_prediction):
-    return K.mean(K.abs(y_prediction, y_true), axis=[1, 2, 3])
+    return K.mean(K.abs(y_prediction - y_true), axis=[1, 2, 3])
 
 def wrapping_loss(network_intermediate_values, y_prediction):
     loss_1 = l1_loss(network_intermediate_values[0],
@@ -143,17 +144,38 @@ def batch_generator(batch_size, files, num_channels=6, batch_image_size=512):
         for i in range(batch_size):
             randNum = random.randrange(3, 398)
             randDir = random.choice(files)
+
+            while True:
+                files_to_check = []
+                files_to_check.append(dir + randDir + "/" + randDir + "final" + str(randNum - 1).zfill(4) + ".exr")
+                files_to_check.append(dir + randDir + "/" + randDir + "final" + str(randNum).zfill(4) + ".exr")
+                files_to_check.append(dir + randDir + "/" + randDir + "final" + str(randNum + 1).zfill(4) + ".exr")
+                for item in files_to_check:
+                    if not os.path.exists(item):  # If happened to choose a rare invalid file (numbers can jump sometimes), choose another
+                        #print("Tried to use invalid file", item)
+                        randNum = random.randrange(3, 398)
+                        randDir = random.choice(files)
+                        continue
+                break
+
             colorFirst = cv2.imread(dir + randDir + "/" + randDir + "final" + str(randNum - 1).zfill(4) + ".exr",
                                     cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
             motVecFirst = cv2.imread(dir + randDir + "/" + randDir + "motVec" + str(randNum - 1).zfill(4) + ".exr",
                                      cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
+            if colorFirst is None or motVecFirst is None:
+                print(randNum)
+                print(randDir)
+                print(dir + randDir + "/" + randDir + "final" + str(randNum - 1).zfill(4) + ".exr")
             firstFrame[i] = np.concatenate((colorFirst, motVecFirst), 2)
 
             colorMiddle = cv2.imread(dir + randDir + "/" + randDir + "final" + str(randNum).zfill(4) + ".exr",
                                      cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
             motVecMiddle = cv2.imread(dir + randDir + "/" + randDir + "motVec" + str(randNum).zfill(4) + ".exr",
                                       cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
+                
             middleFrame[i] = np.concatenate((colorMiddle, motVecMiddle), 2)
+
+            
 
             colorLast = cv2.imread(dir + randDir + "/" + randDir + "final" + str(randNum + 1).zfill(4) + ".exr",
                                    cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
@@ -215,27 +237,33 @@ def save_predictions(predictions):
         image = prediction[:, :, :3]
 
 def run():
+    tf.compat.v1.disable_eager_execution()  # Prevents some weird bugs
+    mirrored_strategy = tf.distribute.MirroredStrategy()
     frame_interpolation = Network()
-    model = frame_interpolation.get_model()
+    with mirrored_strategy.scope():
+        model = frame_interpolation.get_model()
+        optimizer = Adam(learning_rate=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
+        metric = psnr_metric
     model_intermediate_values = frame_interpolation.get_intermediate_values()
-    optimizer = Adam(learning_rate=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
-    loss = charbonnier_loss
 
     # a = batch_generator(32)
     # print(a.shape)
     # print(a)
 
-    train_items = len(names) * 398  # 398 images per set, as 0 and 1 aren't proper data
+    # Reduce dataset size
+    reduced_names = names[0:4]
+
+    train_items = len(reduced_names) * 398  # 398 images per set, as 0 and 1 aren't proper data
     test_items = len(test_names) * 398
     epochs = 2
-    batch_size = 2
+    batch_size = 4
     train_steps = int(np.floor(train_items / batch_size))
     test_steps = int(np.floor(test_items / batch_size))
 
-    train_generator = batch_generator(batch_size, names)
+    train_generator = batch_generator(batch_size, reduced_names)
     test_generator = batch_generator(batch_size, test_names)
 
-    model.compile(loss=loss_function(model_intermediate_values), optimizer=optimizer, metrics=[psnr_metric])
+    model.compile(loss=loss_function(model_intermediate_values), optimizer=optimizer, metrics=[metric])
     model.fit(train_generator, steps_per_epoch=train_steps, epochs=epochs)
     model.evaluate(test_generator, steps=test_steps)
 
