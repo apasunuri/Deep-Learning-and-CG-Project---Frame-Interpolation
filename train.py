@@ -231,12 +231,12 @@ def run():
     train_steps = int(np.floor(train_items / batch_size))
     test_steps = int(np.floor(test_items / batch_size))
 
-    #train_generator = batch_generator(batch_size, names)
-    #test_generator = batch_generator(batch_size, test_names)
+    train_generator = batch_generator(batch_size, names)
+    test_generator = batch_generator(batch_size, test_names)
 
-    #model.compile(loss = loss_function(model_intermediate_values), optimizer = optimizer, metrics = [psnr_metric])
-    #model.fit(train_generator, steps_per_epoch = train_steps, epochs = epochs)
-    #model.evaluate(test_generator, steps = test_steps)
+    model.compile(loss = loss_function(model_intermediate_values), optimizer = optimizer, metrics = [psnr_metric])
+    model.fit(train_generator, steps_per_epoch = train_steps, epochs = epochs)
+    model.evaluate(test_generator, steps = test_steps)
     
     #predict_batch = get_batch(32, test_names)
     #predictions = model.predict(predict_batch)
