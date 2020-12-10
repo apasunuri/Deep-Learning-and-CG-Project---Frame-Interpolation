@@ -163,7 +163,7 @@ def batch_generator(batch_size, files, num_channels=6, batch_image_size=512):
 
             timestamp[i] = np.array([[[0.5]]])
 
-        X_batch = [firstFrame, lastFrame, timestamp]
+        X_batch = [timestamp, firstFrame, lastFrame]
         #X_batch = np.concatenate((firstFrame, lastFrame), 3)  # Concatenate along channels dimension
         y_batch = middleFrame
 
