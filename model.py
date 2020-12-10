@@ -87,8 +87,8 @@ class UNetSubModel():
         return self.conv6, self.output_layer
     
 class Network():
-    def __init__(self, height = 512, width = 512, input_channels = 6, timestamp = 0.5):
-        self.frame_1_input = Input(shape = (height, width, input_channels))(frame_1)
+    def __init__(self, height = 512, width = 512, input_channels = 6):
+        self.frame_1_input = Input(shape = (height, width, input_channels))
         self.frame_2_input = Input(shape = (height, width, input_channels))
         self.timestamp_input = Input(shape = (1, 1, 1))
 
