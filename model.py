@@ -103,9 +103,9 @@ class Network():
 
         self.input_2 = Concatenate(axis = 3)([self.frame_1_input, self.frame_2_input, backward_warping(self.frame_2_input, self.output_2_1), backward_warping(self.frame_1_input, self.output_1_1), self.output_1_1, self.output_2_1])
 
-        _, self.output_2 = UNetSubModel(self.input_2, output_channels = 5, kernel_sizes = (3, 3)).get_output()
+        _, self.unet_final_output_2 = UNetSubModel(self.input_2, output_channels = 5, kernel_sizes = (3, 3)).get_output()
 
-        self.delta_1, self.delta_2, self.visibility_1 = self.output_2[:, :, :, :2], self.output_2[:, :, :, 2:4], self.output_2[:, :, :, 4:5]
+        self.delta_1, self.delta_2, self.visibility_1 = self.unet_final_output_2[:, :, :, :2], self.unet_final_output_2[:, :, :, 2:4], self.unet_final_output_2[:, :, :, 4:5]
         #self.delta_1 = LeakyReLU(alpha = 0.1)(self.delta_1)
         #self.delta_2 = LeakyReLU(alpha = 0.1)(self.delta_2)
         self.visibility_1 = Activation('sigmoid')(self.visibility_1)
