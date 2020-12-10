@@ -81,8 +81,8 @@ names = ["1607557976", "1607558097", "1607561410", "1607561536", "1607561833", "
          "1607561863", "1607561991", "1607562128", "1607557416", "1607557536", "1607557662", "1607557790", "1607557914",
          "1607558039", "1607561345", "1607561474", "1607561773", "1607561892", "1607562030", "1607557446", "1607557566",
          "1607557693", "1607557819", "1607557943", "1607558067", "1607561377", "1607561504", "1607561805", "1607561925",
-         "1607562061"]
-test_names = ["1607557355", "1607557476", "1607557600", "1607557726", "1607557853"]
+         "1607562061", "1607557355", "1607557476"]
+test_names = ["1607557600", "1607557726", "1607557853"]
 
 # Gets a batch of images from one of the handmade videos
 def final_validation_batch_generator(batch_size):
@@ -205,6 +205,19 @@ def get_batch(batch_size, files, num_channels=6, batch_image_size=512):
     for i in range(batch_size):
         randNum = random.randrange(3, 398)  # Toss out first 2 frames, as they're invalid
         randDir = random.choice(files)
+
+        while True:
+                files_to_check = []
+                files_to_check.append(dir + randDir + "/" + randDir + "final" + str(randNum - 1).zfill(4) + ".exr")
+                files_to_check.append(dir + randDir + "/" + randDir + "final" + str(randNum + 1).zfill(4) + ".exr")
+                for item in files_to_check:
+                    if not os.path.exists(item):  # If happened to choose a rare invalid file (numbers can jump sometimes), choose another
+                        #print("Tried to use invalid file", item)
+                        randNum = random.randrange(3, 398)
+                        randDir = random.choice(files)
+                        continue
+                break
+
         colorFirst = cv2.imread(dir + randDir + "/" + randDir + "final" + str(randNum - 1).zfill(4) + ".exr",
                                 cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
         motVecFirst = cv2.imread(dir + randDir + "/" + randDir + "motVec" + str(randNum - 1).zfill(4) + ".exr",
@@ -263,13 +276,19 @@ def run():
     train_generator = batch_generator(batch_size, reduced_names)
     test_generator = batch_generator(batch_size, test_names)
 
+    checkpoint_path = "/home/cis6930/andrew.watson/saved/cp_epoch_{epoch:04d}.ckpt"
+    checkpoint_dir = os.path.dirname(checkpoint_path)
+
+    cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path, save_freq=250, verbose=1)  # Save after every 250 batches
+
     model.compile(loss=loss_function(model_intermediate_values), optimizer=optimizer, metrics=[metric])
-    model.fit(train_generator, steps_per_epoch=train_steps, epochs=epochs)
+    model.fit(train_generator, steps_per_epoch=train_steps, epochs=epochs, callbacks=[cp_callback])
+    print("Evaluating model...")
     model.evaluate(test_generator, steps=test_steps)
 
-    # predict_batch = get_batch(32, test_names)
-    # predictions = model.predict(predict_batch)
-    # save_predictions(predictions)
+    predict_batch = get_batch(4, test_names)
+    predictions = model.predict(predict_batch)
+    save_predictions(predictions)
 
 if __name__ == '__main__':
     run()
