@@ -94,6 +94,7 @@ def final_validation_batch_generator(batch_size):
     firstFrame = np.zeros(shape=(batch_size, 512, 512, 6), dtype="float16")
     middleFrame = np.zeros(shape=(batch_size, 512, 512, 6), dtype="float16")
     lastFrame = np.zeros(shape=(batch_size, 512, 512, 6), dtype="float16")
+    timestamp = np.zeros(shape=(batch_size, 1, 1, 1), dtype="float16")
 
     random.seed()
 
@@ -125,6 +126,8 @@ def final_validation_batch_generator(batch_size):
                                 cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
         lastFrame[i] = np.concatenate((colorLast, motVecLast), 2)
 
+        timestamp[i] = np.array([[[0.5]]])
+
         X_batch = np.array([firstFrame, lastFrame], dtype='float16')
         y_batch = middleFrame
 
@@ -136,6 +139,7 @@ def batch_generator(batch_size, files, num_channels = 6, batch_image_size = 512)
         firstFrame = np.zeros(shape=(batch_size, batch_image_size, batch_image_size, num_channels), dtype="float16")
         middleFrame = np.zeros(shape=(batch_size, batch_image_size, batch_image_size, num_channels), dtype="float16")
         lastFrame = np.zeros(shape=(batch_size, batch_image_size, batch_image_size, num_channels), dtype="float16")
+        timestamp = np.zeros(shape=(batch_size, 1, 1, 1), dtype="float16")
 
         random.seed()
 
@@ -161,7 +165,8 @@ def batch_generator(batch_size, files, num_channels = 6, batch_image_size = 512)
                                     cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
             lastFrame[i] = np.concatenate((colorLast, motVecLast), 2)
 
-        timestamp = np.array([[[0.5]]])
+            timestamp[i] = np.array([[[0.5]]])
+
         X_batch = np.array([firstFrame, lastFrame, timestamp], dtype = 'float16')
         #X_batch = np.concatenate((firstFrame, lastFrame), 3)  # Concatenate along channels dimension
         y_batch = middleFrame
