@@ -254,7 +254,7 @@ def save_predictions(predictions):
 
 def run():
 
-    predicting = False
+    predicting = True
 
     tf.compat.v1.disable_eager_execution()  # Prevents some weird bugs
     mirrored_strategy = tf.distribute.MirroredStrategy()
@@ -268,15 +268,15 @@ def run():
     # a = batch_generator(32)
     # print(a.shape)
     # print(a)
-\
+
     reduced_names = names
 
     train_items = len(reduced_names) * 398  # 398 images per set, as 0 and 1 aren't proper data
     test_items = len(test_names) * 398
-    epochs = 200
+    epochs = 50
     batch_size = 4
-    train_steps = 100  # Batches per "epoch"
-    test_steps = 100
+    train_steps = 200  # Batches per "epoch"
+    test_steps = 200
 
     train_generator = batch_generator(batch_size, reduced_names)
     test_generator = batch_generator(batch_size, test_names)
@@ -284,13 +284,15 @@ def run():
     checkpoint_path = "/blue/cis6930/andrew.watson/saved/cp_epoch-{epoch:04d}_loss-{loss:.3f}.ckpt"
     checkpoint_dir = os.path.dirname(checkpoint_path)
     # Save after every "epoch", and save whole model (so we can pick up where we left off)
-    cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path, verbose=1, save_weights_only=False)  
+    cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path, verbose=1, save_weights_only=True)  
 
     model.compile(loss=loss_function(model_intermediate_values), optimizer=optimizer, metrics=[metric])
 
     if predicting:
         latest = tf.train.latest_checkpoint(checkpoint_dir)
+        latest = "/blue/cis6930/andrew.watson/saved/cp_epoch-0004_loss-10.637.ckpt/variables/variables"
         print("Latest checkpoint:", latest)
+        print("Loading weights from file...")
         model.load_weights(latest)
         print("Predicting...")
         predict_batch = get_batch(4, test_names)
