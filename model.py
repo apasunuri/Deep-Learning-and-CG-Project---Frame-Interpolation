@@ -6,7 +6,7 @@ from tensorflow.keras.activations import *
 from tensorflow.keras import backend as K
 
 class UNetSubModel():
-    def __init__(self, input_layer, output_channels, kernel_sizes, extra_input):
+    def __init__(self, input_layer, output_channels, kernel_sizes, extra_input = None):
         self.input_layer = input_layer
 
         self.conv1 = Conv2D(filters = 32, kernel_size = (kernel_sizes[0], kernel_sizes[0]), padding = 'same')(self.input_layer)
