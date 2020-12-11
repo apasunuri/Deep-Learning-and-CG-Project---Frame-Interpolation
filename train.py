@@ -3,6 +3,7 @@ import numpy as np
 import random
 import tensorflow as tf
 from tensorflow.keras import backend as K
+import os
 # from tensorflow.keras.optimizers import SGD, adadelta, adagrad, Adam, adamax, nadam
 from tensorflow.keras.optimizers import SGD, Adam
 from tensorflow.keras.callbacks import ModelCheckpoint, TensorBoard, CSVLogger, ReduceLROnPlateau
@@ -40,7 +41,7 @@ from model import Network, backward_warping
 
 # Loss Functions
 def l1_loss(y_true, y_prediction):
-    return K.mean(K.abs(y_prediction, y_true), axis=[1, 2, 3])
+    return K.mean(K.abs(y_prediction - y_true), axis=[1, 2, 3])
 
 def wrapping_loss(network_intermediate_values, y_prediction):
     loss_1 = l1_loss(network_intermediate_values[0],
@@ -79,8 +80,8 @@ names = ["1607557976", "1607558097", "1607561410", "1607561536", "1607561833", "
          "1607561863", "1607561991", "1607562128", "1607557416", "1607557536", "1607557662", "1607557790", "1607557914",
          "1607558039", "1607561345", "1607561474", "1607561773", "1607561892", "1607562030", "1607557446", "1607557566",
          "1607557693", "1607557819", "1607557943", "1607558067", "1607561377", "1607561504", "1607561805", "1607561925",
-         "1607562061"]
-test_names = ["1607557355", "1607557476", "1607557600", "1607557726", "1607557853"]
+         "1607562061", "1607557355", "1607557476"]
+test_names = ["1607557600", "1607557726", "1607557853"]
 
 # Gets a batch of images from one of the handmade videos
 def final_validation_batch_generator(batch_size):
@@ -142,6 +143,20 @@ def batch_generator(batch_size, files, num_channels=6, batch_image_size=512):
         for i in range(batch_size):
             randNum = random.randrange(3, 398)
             randDir = random.choice(files)
+
+            while True:
+                files_to_check = []
+                files_to_check.append(dir + randDir + "/" + randDir + "final" + str(randNum - 1).zfill(4) + ".exr")
+                files_to_check.append(dir + randDir + "/" + randDir + "final" + str(randNum).zfill(4) + ".exr")
+                files_to_check.append(dir + randDir + "/" + randDir + "final" + str(randNum + 1).zfill(4) + ".exr")
+                for item in files_to_check:
+                    if not os.path.exists(item):  # If happened to choose a rare invalid file (numbers can jump sometimes), choose another
+                        #print("Tried to use invalid file", item)
+                        randNum = random.randrange(3, 398)
+                        randDir = random.choice(files)
+                        continue
+                break
+
             colorFirst = cv2.imread(dir + randDir + "/" + randDir + "final" + str(randNum - 1).zfill(4) + ".exr",
                                     cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
             motVecFirst = cv2.imread(dir + randDir + "/" + randDir + "motVec" + str(randNum - 1).zfill(4) + ".exr",
@@ -152,7 +167,10 @@ def batch_generator(batch_size, files, num_channels=6, batch_image_size=512):
                                      cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
             motVecMiddle = cv2.imread(dir + randDir + "/" + randDir + "motVec" + str(randNum).zfill(4) + ".exr",
                                       cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
+                
             middleFrame[i] = np.concatenate((colorMiddle, motVecMiddle), 2)
+
+            
 
             colorLast = cv2.imread(dir + randDir + "/" + randDir + "final" + str(randNum + 1).zfill(4) + ".exr",
                                    cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
@@ -173,35 +191,53 @@ def batch_generator(batch_size, files, num_channels=6, batch_image_size=512):
 def get_batch(batch_size, files, num_channels=6, batch_image_size=512):
     dir = "/blue/cis6930/andrew.watson/AutoScene1/"
     firstFrame = np.zeros(shape=(batch_size, batch_image_size, batch_image_size, num_channels), dtype="float16")
-    middleFrame = np.zeros(shape=(batch_size, batch_image_size, batch_image_size, num_channels), dtype="float16")
+    
     lastFrame = np.zeros(shape=(batch_size, batch_image_size, batch_image_size, num_channels), dtype="float16")
-
+    timestamp = np.zeros(shape=(batch_size, 1, 1, 1), dtype="float16")
     random.seed()
 
     # Load images from folder
     for i in range(batch_size):
-        randNum = random.randrange(3, 398)  # Toss out first 2 frames, as they're invalid
+        randNum = random.randrange(3, 398)
         randDir = random.choice(files)
+
+        while True:
+            files_to_check = []
+            files_to_check.append(dir + randDir + "/" + randDir + "final" + str(randNum - 1).zfill(4) + ".exr")
+            files_to_check.append(dir + randDir + "/" + randDir + "final" + str(randNum).zfill(4) + ".exr")
+            files_to_check.append(dir + randDir + "/" + randDir + "final" + str(randNum + 1).zfill(4) + ".exr")
+            for item in files_to_check:
+                if not os.path.exists(item):  # If happened to choose a rare invalid file (numbers can jump sometimes), choose another
+                    #print("Tried to use invalid file", item)
+                    randNum = random.randrange(3, 398)
+                    randDir = random.choice(files)
+                    continue
+            break
+
         colorFirst = cv2.imread(dir + randDir + "/" + randDir + "final" + str(randNum - 1).zfill(4) + ".exr",
                                 cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
         motVecFirst = cv2.imread(dir + randDir + "/" + randDir + "motVec" + str(randNum - 1).zfill(4) + ".exr",
-                                 cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
+                                    cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
         firstFrame[i] = np.concatenate((colorFirst, motVecFirst), 2)
 
         '''colorMiddle = cv2.imread(dir + randDir + "/" + randDir + "final" + str(randNum).zfill(4) + ".exr",
-                                cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
+                                    cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
         motVecMiddle = cv2.imread(dir + randDir + "/" + randDir + "motVec" + str(randNum).zfill(4) + ".exr",
-                                cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
-        middleFrame[i] = np.concatenate((colorMiddle, motVecMiddle), 2)'''
+                                    cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
+            
+        middleFrame[i] = np.concatenate((colorMiddle, motVecMiddle), 2)
+        '''
+        
 
         colorLast = cv2.imread(dir + randDir + "/" + randDir + "final" + str(randNum + 1).zfill(4) + ".exr",
-                               cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
+                                cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
         motVecLast = cv2.imread(dir + randDir + "/" + randDir + "motVec" + str(randNum + 1).zfill(4) + ".exr",
                                 cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
         lastFrame[i] = np.concatenate((colorLast, motVecLast), 2)
 
-    timestamp = np.array([[[0.5]]])
-    X_batch = np.array([firstFrame, lastFrame, timestamp], dtype='float16')
+        timestamp[i] = np.array([[[0.5]]])
+
+    X_batch = [timestamp, firstFrame, lastFrame]
     # X_batch = np.concatenate((firstFrame, lastFrame), 3)  # Concatenate along channels dimension
     # y_batch = middleFrame
 
@@ -210,37 +246,66 @@ def get_batch(batch_size, files, num_channels=6, batch_image_size=512):
     return X_batch
 
 def save_predictions(predictions):
-    for prediction in predictions:
+    for i, prediction in enumerate(predictions):
         image = prediction[:, :, :3]
+        image = image * 255
+        cv2.imwrite("/blue/cis6930/andrew.watson/out/" + str(i) + ".png", image)
 
 def run():
+
+    predicting = True
+
+    tf.compat.v1.disable_eager_execution()  # Prevents some weird bugs
+    mirrored_strategy = tf.distribute.MirroredStrategy()
     frame_interpolation = Network()
-    model = frame_interpolation.get_model()
+    with mirrored_strategy.scope():
+        model = frame_interpolation.get_model()
+        optimizer = Adam(learning_rate=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
+        metric = psnr_metric
     model_intermediate_values = frame_interpolation.get_intermediate_values()
-    optimizer = Adam(learning_rate=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
-    loss = charbonnier_loss
 
     # a = batch_generator(32)
     # print(a.shape)
     # print(a)
 
-    train_items = len(names) * 398  # 398 images per set, as 0 and 1 aren't proper data
-    test_items = len(test_names) * 398
-    epochs = 2
-    batch_size = 2
-    train_steps = int(np.floor(train_items / batch_size))
-    test_steps = int(np.floor(test_items / batch_size))
+    reduced_names = names
 
-    train_generator = batch_generator(batch_size, names)
+    train_items = len(reduced_names) * 398  # 398 images per set, as 0 and 1 aren't proper data
+    test_items = len(test_names) * 398
+    epochs = 50
+    batch_size = 4
+    train_steps = 200  # Batches per "epoch"
+    test_steps = 200
+
+    train_generator = batch_generator(batch_size, reduced_names)
     test_generator = batch_generator(batch_size, test_names)
 
-    model.compile(loss=loss_function(model_intermediate_values), optimizer=optimizer, metrics=[psnr_metric])
-    model.fit(train_generator, steps_per_epoch=train_steps, epochs=epochs)
+    checkpoint_path = "/blue/cis6930/andrew.watson/saved/cp_epoch-{epoch:04d}_loss-{loss:.3f}.ckpt"
+    checkpoint_dir = os.path.dirname(checkpoint_path)
+    # Save after every "epoch", and save whole model (so we can pick up where we left off)
+    cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path, verbose=1, save_weights_only=True)  
+
+    model.compile(loss=loss_function(model_intermediate_values), optimizer=optimizer, metrics=[metric])
+
+    if predicting:
+        latest = tf.train.latest_checkpoint(checkpoint_dir)
+        latest = "/blue/cis6930/andrew.watson/saved/cp_epoch-0004_loss-10.637.ckpt/variables/variables"
+        print("Latest checkpoint:", latest)
+        print("Loading weights from file...")
+        model.load_weights(latest)
+        print("Predicting...")
+        predict_batch = get_batch(4, test_names)
+        predictions = model.predict(predict_batch)
+        save_predictions(predictions)
+        print("Predictions saved.")
+    
+
+    print("Training...")
+    model.fit(train_generator, steps_per_epoch=train_steps, epochs=epochs, callbacks=[cp_callback])  
+    print("Evaluating model...")
     model.evaluate(test_generator, steps=test_steps)
 
-    # predict_batch = get_batch(32, test_names)
-    # predictions = model.predict(predict_batch)
-    # save_predictions(predictions)
+    
 
 if __name__ == '__main__':
     run()
