@@ -1,6 +1,6 @@
 #!/bin/sh
 #SBATCH --cpus-per-task=2
-#SBATCH --mem=12gb
+#SBATCH --mem=8gb
 #SBATCH --partition=gpu
 #SBATCH --gpus=2
 
