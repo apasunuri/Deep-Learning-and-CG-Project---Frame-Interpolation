@@ -6,7 +6,7 @@ from tensorflow.keras.activations import *
 from tensorflow.keras import backend as K
 
 class UNetSubModel():
-    def __init__(self, input_layer, output_channels, kernel_sizes):
+    def __init__(self, input_layer, output_channels, kernel_sizes, extra_input):
         self.input_layer = input_layer
 
         self.conv1 = Conv2D(filters = 32, kernel_size = (kernel_sizes[0], kernel_sizes[0]), padding = 'same')(self.input_layer)
@@ -43,7 +43,9 @@ class UNetSubModel():
         self.conv6 = LeakyReLU(alpha = 0.1)(self.conv6)
         self.conv6 = Conv2D(filters = 512, kernel_size = (3, 3), padding = 'same')(self.conv6)
         self.conv6 = LeakyReLU(alpha = 0.1)(self.conv6)
-        #self.pool6 = AveragePooling2D(pool_size = (2, 2), strides = 2)(self.conv6)
+
+        if(extra_input is not None):
+            self.conv6 = Concatenate()([self.conv6, extra_input])
 
         self.deconv1 = UpSampling2D()(self.conv6)
         self.deconv1 = Conv2D(filters = 512, kernel_size = (3, 3), padding = 'same')(self.deconv1)
@@ -93,9 +95,7 @@ class Network():
         self.timestamp_input = Input(shape = (1, 1, 1))
 
         self.input_1 = Concatenate()([self.frame_1_input, self.frame_2_input])
-        #self.input_layer_1 = Input()(self.input_1)
         self.unet_encoding_output, self.unet_final_output = UNetSubModel(self.input_1, output_channels = 4, kernel_sizes = (7, 5)).get_output()
-        #self.unet_final_output = LeakyReLU(alpha = 0.1)(self.unet_final_output)
 
         self.output_1, self.output_2 = self.unet_final_output[:, :, :, :2], self.unet_final_output[:, :, :, 2:]
         self.output_1_1 = (-1 * (1 - self.timestamp_input) * self.timestamp_input * self.output_1) + (self.timestamp_input * self.timestamp_input * self.output_2)
@@ -103,11 +103,9 @@ class Network():
 
         self.input_2 = Concatenate(axis = 3)([self.frame_1_input, self.frame_2_input, backward_warping(self.frame_2_input, self.output_2_1), backward_warping(self.frame_1_input, self.output_1_1), self.output_1_1, self.output_2_1])
 
-        _, self.unet_final_output_2 = UNetSubModel(self.input_2, output_channels = 5, kernel_sizes = (3, 3)).get_output()
+        _, self.unet_final_output_2 = UNetSubModel(self.input_2, output_channels = 5, kernel_sizes = (3, 3), extra_input = self.unet_encoding_output).get_output()
 
         self.delta_1, self.delta_2, self.visibility_1 = self.unet_final_output_2[:, :, :, :2], self.unet_final_output_2[:, :, :, 2:4], self.unet_final_output_2[:, :, :, 4:5]
-        #self.delta_1 = LeakyReLU(alpha = 0.1)(self.delta_1)
-        #self.delta_2 = LeakyReLU(alpha = 0.1)(self.delta_2)
         self.visibility_1 = Activation('sigmoid')(self.visibility_1)
         self.visibility_1 = K.tile(self.visibility_1, (1, 1, 1, input_channels))
 

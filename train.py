@@ -38,7 +38,6 @@ from model import Network, backward_warping
         for f in files:
             pass '''
 
-
 # Loss Functions
 def l1_loss(y_true, y_prediction):
     return K.mean(K.abs(y_prediction, y_true), axis=[1, 2, 3])
