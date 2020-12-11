@@ -162,10 +162,6 @@ def batch_generator(batch_size, files, num_channels=6, batch_image_size=512):
                                     cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
             motVecFirst = cv2.imread(dir + randDir + "/" + randDir + "motVec" + str(randNum - 1).zfill(4) + ".exr",
                                      cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
-            if colorFirst is None or motVecFirst is None:
-                print(randNum)
-                print(randDir)
-                print(dir + randDir + "/" + randDir + "final" + str(randNum - 1).zfill(4) + ".exr")
             firstFrame[i] = np.concatenate((colorFirst, motVecFirst), 2)
 
             colorMiddle = cv2.imread(dir + randDir + "/" + randDir + "final" + str(randNum).zfill(4) + ".exr",
@@ -196,48 +192,53 @@ def batch_generator(batch_size, files, num_channels=6, batch_image_size=512):
 def get_batch(batch_size, files, num_channels=6, batch_image_size=512):
     dir = "/blue/cis6930/andrew.watson/AutoScene1/"
     firstFrame = np.zeros(shape=(batch_size, batch_image_size, batch_image_size, num_channels), dtype="float16")
-    middleFrame = np.zeros(shape=(batch_size, batch_image_size, batch_image_size, num_channels), dtype="float16")
+    
     lastFrame = np.zeros(shape=(batch_size, batch_image_size, batch_image_size, num_channels), dtype="float16")
-
+    timestamp = np.zeros(shape=(batch_size, 1, 1, 1), dtype="float16")
     random.seed()
 
     # Load images from folder
     for i in range(batch_size):
-        randNum = random.randrange(3, 398)  # Toss out first 2 frames, as they're invalid
+        randNum = random.randrange(3, 398)
         randDir = random.choice(files)
 
         while True:
-                files_to_check = []
-                files_to_check.append(dir + randDir + "/" + randDir + "final" + str(randNum - 1).zfill(4) + ".exr")
-                files_to_check.append(dir + randDir + "/" + randDir + "final" + str(randNum + 1).zfill(4) + ".exr")
-                for item in files_to_check:
-                    if not os.path.exists(item):  # If happened to choose a rare invalid file (numbers can jump sometimes), choose another
-                        #print("Tried to use invalid file", item)
-                        randNum = random.randrange(3, 398)
-                        randDir = random.choice(files)
-                        continue
-                break
+            files_to_check = []
+            files_to_check.append(dir + randDir + "/" + randDir + "final" + str(randNum - 1).zfill(4) + ".exr")
+            files_to_check.append(dir + randDir + "/" + randDir + "final" + str(randNum).zfill(4) + ".exr")
+            files_to_check.append(dir + randDir + "/" + randDir + "final" + str(randNum + 1).zfill(4) + ".exr")
+            for item in files_to_check:
+                if not os.path.exists(item):  # If happened to choose a rare invalid file (numbers can jump sometimes), choose another
+                    #print("Tried to use invalid file", item)
+                    randNum = random.randrange(3, 398)
+                    randDir = random.choice(files)
+                    continue
+            break
 
         colorFirst = cv2.imread(dir + randDir + "/" + randDir + "final" + str(randNum - 1).zfill(4) + ".exr",
                                 cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
         motVecFirst = cv2.imread(dir + randDir + "/" + randDir + "motVec" + str(randNum - 1).zfill(4) + ".exr",
-                                 cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
+                                    cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
         firstFrame[i] = np.concatenate((colorFirst, motVecFirst), 2)
 
         '''colorMiddle = cv2.imread(dir + randDir + "/" + randDir + "final" + str(randNum).zfill(4) + ".exr",
-                                cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
+                                    cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
         motVecMiddle = cv2.imread(dir + randDir + "/" + randDir + "motVec" + str(randNum).zfill(4) + ".exr",
-                                cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
-        middleFrame[i] = np.concatenate((colorMiddle, motVecMiddle), 2)'''
+                                    cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
+            
+        middleFrame[i] = np.concatenate((colorMiddle, motVecMiddle), 2)
+        '''
+        
 
         colorLast = cv2.imread(dir + randDir + "/" + randDir + "final" + str(randNum + 1).zfill(4) + ".exr",
-                               cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
+                                cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
         motVecLast = cv2.imread(dir + randDir + "/" + randDir + "motVec" + str(randNum + 1).zfill(4) + ".exr",
                                 cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
         lastFrame[i] = np.concatenate((colorLast, motVecLast), 2)
 
-    timestamp = np.array([[[0.5]]])
-    X_batch = np.array([firstFrame, lastFrame, timestamp], dtype='float16')
+        timestamp[i] = np.array([[[0.5]]])
+
+    X_batch = [timestamp, firstFrame, lastFrame]
     # X_batch = np.concatenate((firstFrame, lastFrame), 3)  # Concatenate along channels dimension
     # y_batch = middleFrame
 
@@ -246,10 +247,15 @@ def get_batch(batch_size, files, num_channels=6, batch_image_size=512):
     return X_batch
 
 def save_predictions(predictions):
-    for prediction in predictions:
+    for i, prediction in enumerate(predictions):
         image = prediction[:, :, :3]
+        image = image * 255
+        cv2.imwrite("/blue/cis6930/andrew.watson/out/" + str(i) + ".png", image)
 
 def run():
+
+    predicting = False
+
     tf.compat.v1.disable_eager_execution()  # Prevents some weird bugs
     mirrored_strategy = tf.distribute.MirroredStrategy()
     frame_interpolation = Network()
@@ -262,33 +268,43 @@ def run():
     # a = batch_generator(32)
     # print(a.shape)
     # print(a)
-
-    # Reduce dataset size
-    reduced_names = names[0:4]
+\
+    reduced_names = names
 
     train_items = len(reduced_names) * 398  # 398 images per set, as 0 and 1 aren't proper data
     test_items = len(test_names) * 398
-    epochs = 2
+    epochs = 200
     batch_size = 4
-    train_steps = int(np.floor(train_items / batch_size))
-    test_steps = int(np.floor(test_items / batch_size))
+    train_steps = 100  # Batches per "epoch"
+    test_steps = 100
 
     train_generator = batch_generator(batch_size, reduced_names)
     test_generator = batch_generator(batch_size, test_names)
 
-    checkpoint_path = "/home/cis6930/andrew.watson/saved/cp_epoch_{epoch:04d}.ckpt"
+    checkpoint_path = "/blue/cis6930/andrew.watson/saved/cp_epoch-{epoch:04d}_loss-{loss:.3f}.ckpt"
     checkpoint_dir = os.path.dirname(checkpoint_path)
-
-    cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path, save_freq=250, verbose=1)  # Save after every 250 batches
+    # Save after every "epoch", and save whole model (so we can pick up where we left off)
+    cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path, verbose=1, save_weights_only=False)  
 
     model.compile(loss=loss_function(model_intermediate_values), optimizer=optimizer, metrics=[metric])
-    model.fit(train_generator, steps_per_epoch=train_steps, epochs=epochs, callbacks=[cp_callback])
+
+    if predicting:
+        latest = tf.train.latest_checkpoint(checkpoint_dir)
+        print("Latest checkpoint:", latest)
+        model.load_weights(latest)
+        print("Predicting...")
+        predict_batch = get_batch(4, test_names)
+        predictions = model.predict(predict_batch)
+        save_predictions(predictions)
+        print("Predictions saved.")
+    
+
+    print("Training...")
+    model.fit(train_generator, steps_per_epoch=train_steps, epochs=epochs, callbacks=[cp_callback])  
     print("Evaluating model...")
     model.evaluate(test_generator, steps=test_steps)
 
-    predict_batch = get_batch(4, test_names)
-    predictions = model.predict(predict_batch)
-    save_predictions(predictions)
+    
 
 if __name__ == '__main__':
     run()
