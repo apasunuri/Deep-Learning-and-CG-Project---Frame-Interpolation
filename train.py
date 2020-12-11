@@ -150,6 +150,9 @@ def batch_generator(batch_size, files, num_channels=6, batch_image_size=512):
                 files_to_check.append(dir + randDir + "/" + randDir + "final" + str(randNum - 1).zfill(4) + ".exr")
                 files_to_check.append(dir + randDir + "/" + randDir + "final" + str(randNum).zfill(4) + ".exr")
                 files_to_check.append(dir + randDir + "/" + randDir + "final" + str(randNum + 1).zfill(4) + ".exr")
+                files_to_check.append(dir + randDir + "/" + randDir + "motVec" + str(randNum - 1).zfill(4) + ".exr")
+                files_to_check.append(dir + randDir + "/" + randDir + "motVec" + str(randNum).zfill(4) + ".exr")
+                files_to_check.append(dir + randDir + "/" + randDir + "motVec" + str(randNum + 1).zfill(4) + ".exr")
                 for item in files_to_check:
                     if not os.path.exists(item):  # If happened to choose a rare invalid file (numbers can jump sometimes), choose another
                         #print("Tried to use invalid file", item)
@@ -207,6 +210,9 @@ def get_batch(batch_size, files, num_channels=6, batch_image_size=512):
             files_to_check.append(dir + randDir + "/" + randDir + "final" + str(randNum - 1).zfill(4) + ".exr")
             files_to_check.append(dir + randDir + "/" + randDir + "final" + str(randNum).zfill(4) + ".exr")
             files_to_check.append(dir + randDir + "/" + randDir + "final" + str(randNum + 1).zfill(4) + ".exr")
+            files_to_check.append(dir + randDir + "/" + randDir + "motVec" + str(randNum - 1).zfill(4) + ".exr")
+            files_to_check.append(dir + randDir + "/" + randDir + "motVec" + str(randNum).zfill(4) + ".exr")
+            files_to_check.append(dir + randDir + "/" + randDir + "motVec" + str(randNum + 1).zfill(4) + ".exr")
             for item in files_to_check:
                 if not os.path.exists(item):  # If happened to choose a rare invalid file (numbers can jump sometimes), choose another
                     #print("Tried to use invalid file", item)
@@ -290,12 +296,12 @@ def run():
 
     if predicting:
         latest = tf.train.latest_checkpoint(checkpoint_dir)
-        latest = "/blue/cis6930/andrew.watson/saved/cp_epoch-0004_loss-10.637.ckpt/variables/variables"
+        #latest = "/blue/cis6930/andrew.watson/saved/cp_epoch-0004_loss-10.637.ckpt/variables/variables"
         print("Latest checkpoint:", latest)
         print("Loading weights from file...")
         model.load_weights(latest)
         print("Predicting...")
-        predict_batch = get_batch(4, test_names)
+        predict_batch = get_batch(16, test_names)
         predictions = model.predict(predict_batch)
         save_predictions(predictions)
         print("Predictions saved.")
