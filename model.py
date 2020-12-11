@@ -108,8 +108,6 @@ class Network():
         _, self.unet_final_output_2 = UNetSubModel(input_layer = self.input_2, output_channels = 5, kernel_sizes = (3, 3), extra_input = self.unet_encoding_output).get_output()
 
         self.delta_1, self.delta_2, self.visibility_1 = self.unet_final_output_2[:, :, :, :2], self.unet_final_output_2[:, :, :, 2:4], self.unet_final_output_2[:, :, :, 4:5]
-        #self.delta_1 = LeakyReLU(alpha = 0.1)(self.delta_1)
-        #self.delta_2 = LeakyReLU(alpha = 0.1)(self.delta_2)
         self.visibility_1 = Activation('sigmoid')(self.visibility_1)
         #self.visibility_1 = K.tile(self.visibility_1, (1, 1, 1, input_channels))
 
